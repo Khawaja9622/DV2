@@ -1,0 +1,148 @@
+---
+title: 'Data Visualization 2: HW2'
+author: "Khawaja Hassan"
+date: "1/22/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+library(data.table)
+library(ggplot2)
+library(gganimate)
+library(dplyr)
+library(ggmap)
+
+df <- data.table(readRDS('flats.rds'))
+```
+
+## Task 1
+```{r}
+ggplot(df, aes(x = Area)) + 
+  geom_bar(fill = "#006D77", color = "white", stat = 'bin', binwidth = 5) +
+   theme_minimal() + 
+  ggtitle("Distribution of the Area of flats (m2)")
+```
+
+## Task 2
+```{r}
+
+df %>%
+ filter(!is.na(Condition)) %>%
+ ggplot() +
+ aes(x = Price, fill = Condition) +
+ geom_density(adjust = 1L, alpha=0.5) +
+ scale_fill_manual(values = c(bad = "#440154", 
+fair = "#433980", good = "#31688E", `like new` = "#22908B", new = "#35B779", `not finished` = "#90D542", 
+renovated = "#FDE725")) +
+ theme_minimal()+
+  ggtitle("Price Distribution for flats on different conditions")
+
+```
+
+## Task 3
+```{r}
+
+
+df %>%
+ filter(!is.na(Condition)) %>%
+ ggplot() +
+ aes(x = Area, y = Price) +
+ geom_point(shape = "circle", size = 1.5, colour = "#112446", alpha=0.5)+
+  geom_smooth(aes(color=factor(Condition)), method= "lm",se= F)+
+ theme_minimal()+
+  ggtitle("How the condition of the flats effects price to area")
+
+
+```
+
+## Task 4
+```{r}
+
+df1 <- df[,.(Average_price=mean(Price)),by=District]
+ggplot(df1)+
+  aes(x = factor(District), y = Average_price) +
+  geom_bar( size = 1.5, fill = "#006D77", stat = "identity") +
+  theme_minimal()+
+  labs(y="Average Price", x= "District")
+```
+
+## Task 5
+```{r}
+ggplot(df) +
+  aes(x = factor(District), y = Price) +
+  geom_boxplot(fill = "#006D77", alpha= 0.5) +
+  labs(x = "District", y = "Price") +
+  theme_minimal()
+
+```
+
+## Task 6 
+```{r}
+ggplot(df) +
+  aes(x = factor(District), y = Price) +
+  geom_violin(fill = "#006D77", alpha= 0.5) +
+  labs(x = "District", y = "Price") +
+  theme_minimal()
+```
+
+## Task 7 
+```{r}
+
+df2 <- df %>%
+  group_by(District) %>%
+  mutate(mean = mean(Price, na.rm = TRUE))
+
+
+df6 <-  df[,.(MeanPrice= round(mean(Price)),Number_of_Flats=.N),by= District]
+a <- ggplot(df2, aes(x = Price)) +
+  geom_bar(fill = "#006D77", color = "white",stat = 'bin', binwidth = 30000) +
+  theme_bw() 
+
+  
+  a+transition_states(District) +
+    labs(title = paste("District {closest_state}"),
+         subtitle ="Number of Flats:{filter(df6,District==closest_state) %>% pull(Number_of_Flats)}
+         MeanPrice:{filter(df6,District==closest_state) %>% pull(MeanPrice)} ft")
+
+ 
+ 
+``` 
+
+```{r, warning= F}
+
+
+bbox <- c(bottom = 47.349755, top = 47.613628, right = 19.338735, left = 18.924935)
+
+budamap <- get_stamenmap(bbox = bbox, maptype = 'toner-lite',color = c("color", "bw")) 
+
+unique(df$Comfort_lev)
+df <-df[!is.na(Comfort_lev)]
+df <- df[Comfort_lev=="luxury",rating := 6]
+df <-df[Comfort_lev=="very high",rating := 5]
+df <-df[Comfort_lev=="high",rating := 4]
+df <-df[Comfort_lev=="average",rating := 3]
+df <-df[Comfort_lev=="low",rating := 2]
+df <-df[Comfort_lev=="very low",rating := 1]
+
+dt <- df[,.(Average_price=mean(rating)),by= District]
+
+library(tidygeocoder)
+district2 <- read.csv("/Users/khawajahassan/Desktop/district.csv")
+geocode <- geocode(district2,"address")
+saveRDS(geocode, 'geocodes.RDS')
+
+geocodes <- readRDS('geocodes.RDS')
+
+geocodes2 <- left_join(geocode,dt)
+
+
+ggmap(budamap)+
+  geom_point(data=geocodes2,aes(x=long,y=lat,size=Average_price), color= "orange") + theme(legend.position='none')
+```
+
+
+
+
+
+
